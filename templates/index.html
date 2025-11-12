@@ -18,13 +18,11 @@ h2 { margin-top: 40px; color: #333; }
 <h1>Kie Server Dashboard</h1>
 <p>Última actualización: {{ timestamp }}</p>
 
-<a href="/download/all_csv"><button>Descargar CSV</button></a>
-
 {% for pod_name, r in kieservers.items() %}
     <h2>{{ pod_name }} - Pool: {{ r.pool }} (Duración: {{ r.duracion }})</h2>
-    
+
     <canvas id="chart-{{ pod_name }}" style="max-width: 800px;"></canvas>
-    
+
     <table>
         <tr>
             <th>Regla</th>

@@ -7,7 +7,9 @@ services:
     environment:
       - LOG_DIR=/home/ruben/logs
       - PORT=8081
+      - TEMPLATE_DIR=/home/ruben/vscode-git-projects/rules-analizator-python/templates
     volumes:
       - /home/ruben/logs:/home/ruben/logs:Z
+      - /home/ruben/vscode-git-projects/rules-analizator-python/templates:/home/ruben/vscode-git-projects/rules-analizator-python/templates:Z
     restart: always
 

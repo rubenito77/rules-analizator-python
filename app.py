@@ -4,10 +4,13 @@ import os, glob, re, datetime, csv
 from collections import defaultdict, Counter
 from io import StringIO, BytesIO
 
-app = Flask(__name__)
-
+# ---------------- CONFIGURACIÓN ----------------
 LOG_DIR = os.environ.get("LOG_DIR", "/logs")
 PORT = int(os.environ.get("PORT", 8081))
+TEMPLATE_DIR = os.environ.get("TEMPLATE_DIR", "./templates")
+
+# Flask usa la carpeta de templates externa
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
 
 # ---------------- REGEX ----------------
 re_pool = re.compile(r'\((pool-\d+)-thread-\d+\)')
@@ -60,10 +63,8 @@ def analyze_file(path, top_n_pools=1):
                     reglas_pool_set[pool].add(rule)
                     reglas_pool_counter[pool][rule] += 1
 
-                    # Contar threads
                     threads_pool[pool][rule][f"thread-{thread}"] += 1
 
-                    # Pool tiempos
                     if pool not in primera_hora_pool:
                         primera_hora_pool[pool] = hora_seg
                     ultima_hora_pool[pool] = hora_seg
@@ -73,7 +74,6 @@ def analyze_file(path, top_n_pools=1):
     if not primera_hora_pool:
         return ["No hay líneas válidas en el log."]
 
-    # Top N pools por duración
     duraciones = {p: ultima_hora_pool[p] - primera_hora_pool[p] for p in primera_hora_pool}
     top_pools = sorted(duraciones.items(), key=lambda x: x[1], reverse=True)[:top_n_pools]
 
@@ -85,7 +85,6 @@ def analyze_file(path, top_n_pools=1):
         reglas_unicas = sorted(reglas_pool_set[pool_max])
         ranking_reglas = sorted(reglas_pool_counter[pool_max].items(), key=lambda x: x[1], reverse=True)
 
-        # Detalle de reglas con inicio/fin y threads
         reglas_detalle = []
         regla_mas_larga = {"nombre": "", "duracion": 0}
         for regla_nombre in reglas_unicas:
@@ -146,32 +145,7 @@ def index():
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return render_template("index.html", kieservers=kieservers, timestamp=timestamp)
 
-@app.route("/download/<name>")
-def download_csv(name):
-    logs = sorted(glob.glob(os.path.join(LOG_DIR, f"*{name}*.log")))
-    if not logs:
-        return f"No hay logs para {name}"
-
-    resumen = analyze_file(logs[0], top_n_pools=10)
-    siostr = StringIO()
-    writer = csv.writer(siostr)
-    writer.writerow(["Pool","Inicio","Fin","Duracion","Cant reglas","Regla","Inicio Regla","Fin Regla","Duracion segs","Ranking"])
-    for r in resumen:
-        for reg in r["reglas"]:
-            ranking_str = "; ".join([f"{regla}:{cnt}" for regla,cnt in r["ranking_reglas"]])
-            writer.writerow([r["pool"], r["inicio"], r["fin"], r["duracion"], r["cant_reglas"],
-                             reg["nombre"], reg["inicio"], reg["fin"], reg["duracion_segundos"], ranking_str])
-
-    mem = BytesIO()
-    mem.write(siostr.getvalue().encode("utf-8"))
-    mem.seek(0)
-
-    return send_file(mem,
-                     mimetype="text/csv",
-                     download_name=f"{name}_top_pools.csv",
-                     as_attachment=True)
-
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT)
+    app.run(host="0.0.0.0", port=PORT, debug=True)  # debug=True permite recarga automática
 
