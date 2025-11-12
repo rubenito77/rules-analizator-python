@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Detalle KieServer - {{ kieserver }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .highlight { background-color: #ffeb3b; }
+        a { text-decoration: none; color: #007BFF; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>KieServer: {{ kieserver }}</h1>
+    <p>Última actualización: {{ timestamp }}</p>
+    <p><a href="/">Volver al Dashboard</a> | 
+       <a href="/download/{{ kieserver }}">Descargar CSV</a></p>
+
+    {% if resumen %}
+        {% for r in resumen %}
+            <h2>Pool: {{ r.pool }} | Inicio: {{ r.inicio }} | Fin: {{ r.fin }} | Duración: {{ r.duracion }}</h2>
+            <p>Regla que más duró: <strong>{{ r.regla_mas_larga.nombre }}</strong> ({{ r.regla_mas_larga.duracion }})</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Regla</th>
+                        <th>Hora Inicio</th>
+                        <th>Hora Fin</th>
+                        <th>Thread</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for regla in r.reglas %}
+                        <tr class="{% if regla.nombre == r.regla_mas_larga.nombre %}highlight{% endif %}">
+                            <td>{{ regla.nombre }}</td>
+                            <td>{{ regla.inicio }}</td>
+                            <td>{{ regla.fin }}</td>
+                            <td>
+                                {% for thread, count in r.threads.items() %}
+                                    {{ thread }}: {{ count }}<br>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <h3>Network Elements</h3>
+            {% if r.network_elements %}
+                <ul>
+                {% for ne, data in r.network_elements.items() %}
+                    <li>{{ ne }}: {{ data.reglas | join(", ") }}</li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No se encontraron network elements para este pool.</p>
+            {% endif %}
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>No hay datos disponibles para este KieServer.</p>
+    {% endif %}
+</body>
+</html>
+

@@ -1,0 +1,13 @@
+version: "3.9"
+services:
+  kies-dashboard:
+    build: .
+    container_name: kies-dashboard
+    network_mode: "host"
+    environment:
+      - LOG_DIR=/home/ruben/logs
+      - PORT=8081
+    volumes:
+      - /home/ruben/logs:/home/ruben/logs:Z
+    restart: always
+
