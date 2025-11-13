@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>Kie Server Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <style>
 body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-bottom: 30px; background: #fff; }
@@ -11,6 +12,10 @@ th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
 th { background: #333; color: #fff; }
 h2 { margin-top: 40px; color: #333; }
 .highlight { background-color: #ddd; }
+.flex-charts { display: flex; gap: 20px; margin-bottom: 40px; flex-wrap: wrap; }
+.flex-charts canvas { flex: 1; min-width: 300px; max-width: 45%; }
+#pod-filter { margin-bottom: 20px; padding: 5px; font-size: 16px; }
+.pod-section { margin-bottom: 50px; }
 </style>
 </head>
 <body>
@@ -18,10 +23,22 @@ h2 { margin-top: 40px; color: #333; }
 <h1>Kie Server Dashboard</h1>
 <p>Última actualización: {{ timestamp }}</p>
 
+<label for="pod-filter">Filtrar por pod:</label>
+<select id="pod-filter">
+    <option value="all">Todos</option>
+    {% for pod_name in kieservers.keys() %}
+        <option value="{{ pod_name }}">{{ pod_name }}</option>
+    {% endfor %}
+</select>
+
 {% for pod_name, r in kieservers.items() %}
+<div class="pod-section" id="section-{{ pod_name }}">
     <h2>{{ pod_name }} - Pool: {{ r.pool }} (Duración: {{ r.duracion }})</h2>
 
-    <canvas id="chart-{{ pod_name }}" style="max-width: 800px;"></canvas>
+    <div class="flex-charts">
+        <canvas id="chart-{{ pod_name }}-1"></canvas>
+        <canvas id="chart-{{ pod_name }}-2"></canvas>
+    </div>
 
     <table>
         <tr>
@@ -43,30 +60,146 @@ h2 { margin-top: 40px; color: #333; }
         </tr>
         {% endfor %}
     </table>
+</div>
 
-    <script>
-        const ctx{{ pod_name|replace('-', '_') }} = document.getElementById('chart-{{ pod_name }}').getContext('2d');
-        const labels{{ pod_name|replace('-', '_') }} = [{% for regla in r.reglas %}'{{ regla.nombre }}',{% endfor %}];
-        const data{{ pod_name|replace('-', '_') }} = [{% for regla in r.reglas %}{{ regla.duracion_segundos }},{% endfor %}];
-        new Chart(ctx{{ pod_name|replace('-', '_') }}, {
-            type: 'bar',
-            data: {
-                labels: labels{{ pod_name|replace('-', '_') }},
-                datasets: [{
-                    label: 'Duración (segundos)',
-                    data: data{{ pod_name|replace('-', '_') }},
-                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: { y: { beginAtZero: true } }
+<script>
+const ctxDuracion{{ pod_name|replace('-', '_') }} = document.getElementById('chart-{{ pod_name }}-1').getContext('2d');
+const ctxThreads{{ pod_name|replace('-', '_') }} = document.getElementById('chart-{{ pod_name }}-2').getContext('2d');
+
+const labels{{ pod_name|replace('-', '_') }} = [{% for regla in r.reglas %}'{{ regla.nombre }}',{% endfor %}];
+const duraciones{{ pod_name|replace('-', '_') }} = [{% for regla in r.reglas %}{{ regla.duracion_segundos }},{% endfor %}];
+const threadCounts{{ pod_name|replace('-', '_') }} = [{% for regla in r.reglas %}{{ regla.threads|length }},{% endfor %}];
+
+// Gráfico Duración (azul)
+new Chart(ctxDuracion{{ pod_name|replace('-', '_') }}, {
+    type: 'bar',
+    data: {
+        labels: labels{{ pod_name|replace('-', '_') }},
+        datasets: [{
+            label: 'Duración (segundos)',
+            data: duraciones{{ pod_name|replace('-', '_') }},
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: { 
+        plugins: { 
+            datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold' }, color: '#000' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let idx = context.dataIndex;
+                        return `Regla: ${labels{{ pod_name|replace('-', '_') }}[idx]} | Duración: ${duraciones{{ pod_name|replace('-', '_') }}[idx]} seg | Threads: ${threadCounts{{ pod_name|replace('-', '_') }}[idx]}`;
+                    }
+                }
             }
-        });
-    </script>
+        },
+        scales: { y: { beginAtZero: true } }
+    },
+    plugins: [ChartDataLabels]
+});
+
+// Gráfico Threads (naranja)
+new Chart(ctxThreads{{ pod_name|replace('-', '_') }}, {
+    type: 'bar',
+    data: {
+        labels: labels{{ pod_name|replace('-', '_') }},
+        datasets: [{
+            label: 'Cantidad de Threads',
+            data: threadCounts{{ pod_name|replace('-', '_') }},
+            backgroundColor: 'rgba(255, 159, 64, 0.6)',
+            borderColor: 'rgba(255, 159, 64, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: { 
+        plugins: { 
+            datalabels: { anchor: 'end', align: 'top', font: { weight: 'bold' }, color: '#000' },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let idx = context.dataIndex;
+                        return `Regla: ${labels{{ pod_name|replace('-', '_') }}[idx]} | Threads: ${threadCounts{{ pod_name|replace('-', '_') }}[idx]} | Duración: ${duraciones{{ pod_name|replace('-', '_') }}[idx]} seg`;
+                    }
+                }
+            }
+        },
+        scales: { y: { beginAtZero: true } }
+    },
+    plugins: [ChartDataLabels]
+});
+</script>
 
 {% endfor %}
+
+<script>
+// Filtrado de pods
+const podFilter = document.getElementById('pod-filter');
+podFilter.addEventListener('change', function() {
+    const selected = this.value;
+    document.querySelectorAll('.pod-section').forEach(div => {
+        div.style.display = (selected === 'all' || div.id === `section-${selected}`) ? 'block' : 'none';
+    });
+});
+
+// Refresco automático cada 30 segundos
+async function actualizarDashboard() {
+    try {
+        const res = await fetch('/api/data');
+        const data = await res.json();
+        const kieservers = data.kieservers;
+        document.querySelector('p').textContent = "Última actualización: " + data.timestamp;
+
+        Object.keys(kieservers).forEach(pod_name => {
+            const r = kieservers[pod_name];
+
+            // Actualizar gráficos
+            const durChart = Chart.getChart(`chart-${pod_name}-1`);
+            const thrChart = Chart.getChart(`chart-${pod_name}-2`);
+            if(durChart && thrChart){
+                const labels = r.reglas.map(x => x.nombre);
+                const duraciones = r.reglas.map(x => x.duracion_segundos);
+                const threadCounts = r.reglas.map(x => Object.keys(x.threads).length);
+
+                durChart.data.labels = labels;
+                durChart.data.datasets[0].data = duraciones;
+                durChart.update();
+
+                thrChart.data.labels = labels;
+                thrChart.data.datasets[0].data = threadCounts;
+                thrChart.update();
+            }
+
+            // Actualizar tabla
+            const tableDiv = document.getElementById(`section-${pod_name}`);
+            if(tableDiv){
+                const tableRows = tableDiv.querySelectorAll('table tr:not(:first-child)');
+                tableRows.forEach(tr => tr.remove());
+                const tbody = tableDiv.querySelector('table');
+                r.reglas.forEach(regla => {
+                    const tr = document.createElement('tr');
+                    if(regla.nombre === r.regla_mas_larga.nombre) tr.classList.add('highlight');
+                    tr.innerHTML = `
+                        <td>${regla.nombre}</td>
+                        <td>${regla.inicio}</td>
+                        <td>${regla.fin}</td>
+                        <td>${Object.entries(regla.threads).map(([t,c]) => t+': '+c).join('<br>')}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        });
+    } catch(e){
+        console.error("Error al actualizar dashboard:", e);
+    }
+}
+
+// Primer refresco
+actualizarDashboard();
+// Repetir cada 30 segundos
+setInterval(actualizarDashboard, 30000);
+</script>
 
 </body>
 </html>
