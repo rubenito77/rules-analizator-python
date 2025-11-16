@@ -2,14 +2,16 @@ version: "3.9"
 services:
   kies-dashboard:
     build: .
-    container_name: kies-dashboard
+    image: kieserver-dashboard-2-charts
+    container_name: kieserver-dashboard-2-charts
     network_mode: "host"
     environment:
       - LOG_DIR=/home/ruben/logs
       - PORT=8081
-      - TEMPLATE_DIR=/home/ruben/vscode-git-projects/rules-analizator-python/templates
+      - TEMPLATE_DIR=/home/ruben/Git/rules-analizator-python/templates
+      - TZ=America/Argentina/Buenos_Aires
     volumes:
-      - /home/ruben/logs:/home/ruben/logs:Z
-      - /home/ruben/vscode-git-projects/rules-analizator-python/templates:/home/ruben/vscode-git-projects/rules-analizator-python/templates:Z
+      - /home/ruben/logs:/home/ruben/logs
+      - /home/ruben/Git/rules-analizator-python/templates:/home/ruben/Git/rules-analizator-python/templates
     restart: always
 
